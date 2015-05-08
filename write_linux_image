@@ -1,6 +1,9 @@
 #!/bin/bash 
 set -e 
 # any error, and this script will exit
+
+MAX_HOME=100 # GiB to reserve for home
+
 IMAGE_FILE=$(readlink -f "latest.img")
 
 if [[ $# -eq 0 ]]; then
@@ -73,7 +76,7 @@ if [[ $SIZE == *"."* ]]; then
 fi
 
 RESERVE_SIZE=`expr $SIZE - 40`
-STARTING=`expr $SIZE - 100`
+STARTING=`expr $SIZE - $MAX_HOME`
 
 if [[ $STARTING -lt $RESERVE_SIZE ]]; then
     BOUNDARY=$STARTING
