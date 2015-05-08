@@ -44,7 +44,7 @@ if mount | grep ${HDD_DEV} > /dev/null; then
 fi
 
 
-parted --script $HDD_DEV u GiB print
+parted $HDD_DEV unit GiB print
 
 echo "All data on $HDD_DEV will be lost"
 read -r -p "Are you sure? [y/N] " response
@@ -60,8 +60,8 @@ esac
 START_STRING="Disk ${HDD_DEV}:"
 CUT_LENGTH=${#START_STRING}
 REGEX='(\d+ \)'
-#HDSIZE=`sudo hdparm -I $HDD_DEV | grep GB`
-HDSIZE=`sudo parted $HDD_DEV unit GiB print | grep "$START_STRING"`
+#HDSIZE=`hdparm -I $HDD_DEV | grep GB`
+HDSIZE=`parted $HDD_DEV unit GiB print | grep "$START_STRING"
 LEN=$((${#HDSIZE}-$CUT_LENGTH-2))
 
 #echo $HDSIZE
@@ -85,9 +85,6 @@ if [[ $BOUNDARY -lt 40 ]]; then
     BOUNDARY=40
 fi
 SWAP=`expr $BOUNDARY + 4`
-
-echo "Boundary: ${BOUNDARY}GiB"
-echo "Swap: ${SWAP}GiB"
 
 echo "creating partitions...."
 parted -a optimal -s $HDD_DEV -- mklabel msdos \
