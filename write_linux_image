@@ -75,7 +75,7 @@ fi
 RESERVE_SIZE=`expr $SIZE - 40`
 STARTING=`expr $SIZE - 100`
 
-if [[ $STARTING -gt $RESERVE_SIZE ]]; then
+if [[ $STARTING -lt $RESERVE_SIZE ]]; then
     BOUNDARY=$STARTING
 else
     BOUNDARY=$RESERVE_SIZE
@@ -84,6 +84,12 @@ if [[ $BOUNDARY -lt 40 ]]; then
     BOUNDARY=40
 fi
 SWAP=`expr $BOUNDARY + 4`
+
+echo "BOUNDARY: ${BOUNDARY}GiB"
+echo "STARTING: ${STARTING}"
+echo "RESERVE_SIZE: ${RESERVE_SIZE}"
+
+exit 255
 
 echo "creating partitions...."
 parted -a optimal -s $HDD_DEV -- mklabel msdos \
