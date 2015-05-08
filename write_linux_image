@@ -43,6 +43,9 @@ if mount | grep ${HDD_DEV} > /dev/null; then
     exit 6
 fi
 
+
+parted --script $HDD_DEV u GiB print
+
 echo "All data on $HDD_DEV will be lost"
 read -r -p "Are you sure? [y/N] " response
 case $response in 
@@ -86,7 +89,6 @@ SWAP=`expr $BOUNDARY + 4`
 echo "Boundary: ${BOUNDARY}GiB"
 echo "Swap: ${SWAP}GiB"
 
-if false; then
 echo "creating partitions...."
 parted -a optimal -s $HDD_DEV -- mklabel msdos \
     mkpart primary ext4 1 6145MiB \
@@ -109,7 +111,6 @@ fi
 
 echo "Writing master image to ${HDD_DEV}1..."
 pv "$IMAGE_FILE" | dd of=${HDD_DEV}1 
-fi
 
 echo "mounting ${HDD_DEV}1..."
 mount ${HDD_DEV}1 `pwd`/linux-mate
