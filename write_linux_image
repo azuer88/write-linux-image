@@ -60,17 +60,16 @@ esac
 START_STRING="Disk ${HDD_DEV}:"
 CUT_LENGTH=${#START_STRING}
 REGEX='(\d+ \)'
-#HDSIZE=`hdparm -I $HDD_DEV | grep GB`
-HDSIZE=`parted $HDD_DEV unit GiB print | grep "$START_STRING"
-LEN=$((${#HDSIZE}-$CUT_LENGTH-2))
-
-#echo $HDSIZE
-
+UNIT_STR="GiB"
+UNIT_LEN=${#UNIT_STR}
+HDSIZE=`parted $HDD_DEV unit ${UNIT_STR} print | grep "$START_STRING"`
+LEN=$((${#HDSIZE}-$CUT_LENGTH-$UNIT_LEN))
 SIZE="${HDSIZE:$CUT_LENGTH:$LEN}"
 
-IDX=`expr index $SIZE "."`
-if [[ $IDX -gt "0" ]]; then
-    SIZE=${SIZE:0:$IDX}
+if [[ $SIZE == *"."* ]]; then
+   IDX=`expr index ${SIZE} "."`
+   echo "IDX: ${IDX}"
+   SIZE=${SIZE:0:$IDX}
 fi
 
 RESERVE_SIZE=`expr $SIZE - 40`
