@@ -2,10 +2,24 @@
 set -e 
 # any error, and this script will exit
 IMAGE_FILE=$(readlink -f "latest.img")
+
+if [[ $# -eq 0 ]]; then
+    echo "usage: ./`basename $0` <device>"
+    echo "        e.g.: ./`basename $0` /dev/sdb"
+    echo " WARNING: This will DESTROY all data, be very careful"
+    exit 1
+fi
+
 ROOT_UID=0
 if [ $UID != $ROOT_UID ]; then
     echo "Please run this script with administrator rights."
-    exit 1
+    if [[ -t 1 ]]; then
+        sudo "$0" "$@"
+    else
+        exec 1>output_file
+        gksu "$0" "$@"
+    fi
+    exit
 fi
 
 HDD_DEV=$1
