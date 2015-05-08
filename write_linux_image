@@ -12,7 +12,7 @@ fi
 
 ROOT_UID=0
 if [ $UID != $ROOT_UID ]; then
-    echo "Please run this script with administrator rights."
+    echo "This script needs administrator privileges."
     if [[ -t 1 ]]; then
         sudo "$0" "$@"
     else
@@ -86,13 +86,15 @@ SWAP=`expr $BOUNDARY + 4`
 echo "Boundary: ${BOUNDARY}GiB"
 echo "Swap: ${SWAP}GiB"
 
+if false; then
 echo "creating partitions...."
-# umount $HDD_DEV
 parted -a optimal -s $HDD_DEV -- mklabel msdos \
-    mkpart primary ext4 1 6GiB \
+    mkpart primary ext4 1 6145MiB \
     mkpart extended ${BOUNDARY}GiB 100% \
     mkpart logical linux-swap ${BOUNDARY}GiB ${SWAP}GiB \
-    mkpart logical ext4 ${SWAP}GiB 100%
+    mkpart logical ext4 ${SWAP}GiB 100% \
+    set 1 boot on
+
 
 mkswap -L swap ${HDD_DEV}5 
 mkfs.ext4 -L linux-mate ${HDD_DEV}1 
@@ -104,15 +106,23 @@ if mount | grep ${HDD_DEV}1 > /dev/null; then
 else
     echo "not mounted, good."
 fi
+
 echo "Writing master image to ${HDD_DEV}1..."
 pv "$IMAGE_FILE" | dd of=${HDD_DEV}1 
+fi
 
+echo "mounting ${HDD_DEV}1..."
 mount ${HDD_DEV}1 `pwd`/linux-mate
 
-/usr/sbin/grub-install ${HDD_DEV}1 --boot-directory=`pwd`/linux-mate
-echo "Resizing partition..."
+echo "installing grub..."
+/usr/sbin/grub-install ${HDD_DEV} --boot-directory=`pwd`/linux-mate/boot       
 
+echo "unmounting ${HDD_DEV}1..."
+umount ${HDD_DEV}1
+
+echo "Resizing partition..."
 parted -a optimal -s $HDD_DEV -- resizepart 1 40GiB
+
 echo "Resizing filesystem..."
 e2fsck -f ${HDD_DEV}1
 resize2fs ${HDD_DEV}1 
