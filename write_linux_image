@@ -114,12 +114,13 @@ function create_partitions_and_copy_image {
     
     get_target_device_size
     echo "BOUNDARY = $BOUNDARY"
-    SWAP=`expr $BOUNDARY + 4`
+    echo "SIZE = $SIZE"
+    SWAP=`expr $SIZE - 4`
     parted -a optimal -s $HDD_DEV -- mklabel msdos \
         mkpart primary ext4 1 6145MiB \
         mkpart extended ${BOUNDARY}GiB 100% \
-        mkpart logical linux-swap ${BOUNDARY}GiB ${SWAP}GiB \
-        mkpart logical ext4 ${SWAP}GiB 100% \
+        mkpart logical linux-swap ${SWAP}GiB 100% \
+        mkpart logical ext4 ${BOUNDARY}GiB ${SWAP}GiB \
         set 1 boot on
 
     mkswap -L swap ${HDD_DEV}5 
