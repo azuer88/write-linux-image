@@ -3,133 +3,180 @@ set -e
 # any error, and this script will exit
 
 MAX_HOME=100 # GiB to reserve for home
+MOUNT_POINT="`pwd`/linux-mate"
+SOURCE_IMAGE="latest.img"
+MASTER_IMAGE=""
+SELF=$0
+HDD_DEV=$1
+BOUNDARY=0
+SWAP=0
 
-IMAGE_FILE=$(readlink -f "latest.img")
+function get_master_image_filename {    
+    local target
+    if [ -e $SOURCE_IMAGE ]; then
+        target=$(readlink -f $SOURCE_IMAGE)
+    else
+        echo "Master image not found -- ${SOURCE_IMAGE}"
+        exit 3
+    fi
+    if [ -s "$target" ]; then
+        echo "Image file is: $target"
+    else
+        echo "Image file not found - $target"
+        exit 3
+    fi
+    MASTER_IMAGE="$target"
+}
 
-if [[ $# -eq 0 ]]; then
-    echo "usage: ./`basename $0` <device>"
-    echo "        e.g.: ./`basename $0` /dev/sdb"
+function check_rights {
+    ROOT_UID=0
+    if [ $UID != $ROOT_UID ]; then
+        echo "This script needs administrator privileges."
+        if [[ -t 1 ]]; then
+            sudo "$SELF" "$HDD_DEV"
+        else
+            exec 1>output_file
+            gksu "$SELF" "$HDD_DEV"
+        fi
+        exit
+    fi
+}
+
+
+function check_target_device {
+    if [ -e $HDD_DEV ]; then
+        echo "Target device: ${HDD_DEV}"
+    else
+        echo "Target device not found - ${HDD_DEV}"
+        exit 4
+    fi
+    
+    if [ -b $HDD_DEV ]; then
+        echo "Target is a block device. so far so good."
+    else
+        echo "Target doesn't seem to be a block device. exiting..."
+        exit 4
+    fi
+
+    if mount | grep ${HDD_DEV} > /dev/null; then
+        echo "Target device is mounted, cannot continue."
+        echo "Please unmount first."
+        exit 6
+    fi
+}
+
+function confirm_destroy_target_device {
+    parted $HDD_DEV unit GiB print
+
+    echo "All data on $HDD_DEV will be lost"
+    read -r -p "Are you sure? [y/N] " response
+    case $response in 
+        [yY][eE][sS]|[yY])
+            ;;
+        *)
+            echo "User aborted."
+            exit 2
+            ;;
+    esac
+}
+
+function get_target_device_size {
+    echo "Getting target device size..."
+    START_STRING="Disk ${HDD_DEV}:"
+    CUT_LENGTH=${#START_STRING}
+    UNIT_STR="GiB"
+    UNIT_LEN=${#UNIT_STR}
+    HDSIZE_STR=`parted $HDD_DEV unit ${UNIT_STR} print | grep "$START_STRING"`
+    LEN=$((${#HDSIZE_STR}-$CUT_LENGTH-$UNIT_LEN))
+    SIZE="${HDSIZE_STR:$CUT_LENGTH:$LEN}"
+    echo "Calc SIZE"
+    if [[ $SIZE == *"."* ]]; then
+       IDX=`expr index ${SIZE} "."`
+       echo "IDX: ${IDX}"
+       SIZE=${SIZE:0:$IDX}
+    fi
+    echo "Calc RESERVE_SIZE"
+    RESERVE_SIZE=`expr $SIZE - 40`
+    STARTING=`expr $SIZE - $MAX_HOME`
+
+    if [[ $STARTING -lt $RESERVE_SIZE ]]; then
+        BOUNDARY=$STARTING
+    else
+        BOUNDARY=$RESERVE_SIZE
+    fi
+    if [[ $BOUNDARY -lt 40 ]]; then
+        BOUNDARY=40
+    fi
+}
+
+function create_partitions_and_copy_image {
+    echo "creating partitions...."
+    
+    get_target_device_size
+    echo "BOUNDARY = $BOUNDARY"
+    SWAP=`expr $BOUNDARY + 4`
+    parted -a optimal -s $HDD_DEV -- mklabel msdos \
+        mkpart primary ext4 1 6145MiB \
+        mkpart extended ${BOUNDARY}GiB 100% \
+        mkpart logical linux-swap ${BOUNDARY}GiB ${SWAP}GiB \
+        mkpart logical ext4 ${SWAP}GiB 100% \
+        set 1 boot on
+
+    mkswap -L swap ${HDD_DEV}5 
+    mkfs.ext4 -L linux-mate ${HDD_DEV}1 
+    mkfs.ext4 -L home-rw ${HDD_DEV}6 
+    echo "checking if ${HDD_DEV}1 is mounted..."
+    if mount | grep ${HDD_DEV}1 > /dev/null; then
+        echo "is mounted, will unmount"
+        umount ${HDD_DEV}1
+    else
+        echo "not mounted, good."
+    fi
+
+    echo "Writing master image to ${HDD_DEV}1..."
+    get_master_image_filename
+    pv "$MASTER_IMAGE" | dd of=${HDD_DEV}1 
+
+    echo "mounting ${HDD_DEV}1..."
+    mount ${HDD_DEV}1 "${MOUNT_POINT}"
+
+    echo "installing grub..."
+    /usr/sbin/grub-install ${HDD_DEV} \
+        --boot-directory="${MOUNT_POINT}/boot"
+
+    echo "unmounting ${HDD_DEV}1..."
+    umount ${HDD_DEV}1
+
+    echo "Resizing partition..."
+    parted -a optimal -s $HDD_DEV -- resizepart 1 40GiB
+
+    echo "Resizing filesystem..."
+    e2fsck -f ${HDD_DEV}1
+    resize2fs ${HDD_DEV}1 
+}
+
+function print_usage_and_exit {
+    PROG=`basename $SELF`
+    echo "usage: ./$PROG <device>"
+    echo "        e.g.: ./$PROG /dev/sdb"
     echo " WARNING: This will DESTROY all data, be very careful"
     exit 1
+}
+
+# check that we have at least 1 parameter
+echo $#
+if [[ $# -ne 1 ]]; then
+    print_usage_and_exit
 fi
 
-ROOT_UID=0
-if [ $UID != $ROOT_UID ]; then
-    echo "This script needs administrator privileges."
-    if [[ -t 1 ]]; then
-        sudo "$0" "$@"
-    else
-        exec 1>output_file
-        gksu "$0" "$@"
-    fi
-    exit
-fi
+# check that the first parameter is a device
+check_target_device
 
-HDD_DEV=$1
-if [ -s "$IMAGE_FILE" ]; then
-    echo "Image file is: ${IMAGE_FILE}"
-else
-    echo "Image file not found: '${IMAGE_FILE}'"
-    exit 3
-fi
+# check that we have root privileges
+check_rights
 
-if [ -e $HDD_DEV ]; then
-    echo "Target device: ${HDD_DEV}"
-else
-    echo "Target device not found - ${HDD_DEV}"
-    exit 4
-fi
+# ask user if okay to destroy data on device
+confirm_destroy_target_device
 
-if mount | grep ${HDD_DEV} > /dev/null; then
-    echo "Target device is mounted, cannot continue."
-    echo "Please unmount first."
-    exit 6
-fi
-
-
-parted $HDD_DEV unit GiB print
-
-echo "All data on $HDD_DEV will be lost"
-read -r -p "Are you sure? [y/N] " response
-case $response in 
-    [yY][eE][sS]|[yY])
-        ;;
-    *)
-        echo "User aborted."
-        exit 2
-        ;;
-esac
-
-START_STRING="Disk ${HDD_DEV}:"
-CUT_LENGTH=${#START_STRING}
-REGEX='(\d+ \)'
-UNIT_STR="GiB"
-UNIT_LEN=${#UNIT_STR}
-HDSIZE=`parted $HDD_DEV unit ${UNIT_STR} print | grep "$START_STRING"`
-LEN=$((${#HDSIZE}-$CUT_LENGTH-$UNIT_LEN))
-SIZE="${HDSIZE:$CUT_LENGTH:$LEN}"
-
-if [[ $SIZE == *"."* ]]; then
-   IDX=`expr index ${SIZE} "."`
-   echo "IDX: ${IDX}"
-   SIZE=${SIZE:0:$IDX}
-fi
-
-RESERVE_SIZE=`expr $SIZE - 40`
-STARTING=`expr $SIZE - $MAX_HOME`
-
-if [[ $STARTING -lt $RESERVE_SIZE ]]; then
-    BOUNDARY=$STARTING
-else
-    BOUNDARY=$RESERVE_SIZE
-fi
-if [[ $BOUNDARY -lt 40 ]]; then
-    BOUNDARY=40
-fi
-SWAP=`expr $BOUNDARY + 4`
-
-echo "BOUNDARY: ${BOUNDARY}GiB"
-echo "STARTING: ${STARTING}"
-echo "RESERVE_SIZE: ${RESERVE_SIZE}"
-
-exit 255
-
-echo "creating partitions...."
-parted -a optimal -s $HDD_DEV -- mklabel msdos \
-    mkpart primary ext4 1 6145MiB \
-    mkpart extended ${BOUNDARY}GiB 100% \
-    mkpart logical linux-swap ${BOUNDARY}GiB ${SWAP}GiB \
-    mkpart logical ext4 ${SWAP}GiB 100% \
-    set 1 boot on
-
-
-mkswap -L swap ${HDD_DEV}5 
-mkfs.ext4 -L linux-mate ${HDD_DEV}1 
-mkfs.ext4 -L home-rw ${HDD_DEV}6 
-echo "checking if ${HDD_DEV}1 is mounted..."
-if mount | grep ${HDD_DEV}1 > /dev/null; then
-    echo "is mounted, will unmount"
-    umount ${HDD_DEV}1
-else
-    echo "not mounted, good."
-fi
-
-echo "Writing master image to ${HDD_DEV}1..."
-pv "$IMAGE_FILE" | dd of=${HDD_DEV}1 
-
-echo "mounting ${HDD_DEV}1..."
-mount ${HDD_DEV}1 `pwd`/linux-mate
-
-echo "installing grub..."
-/usr/sbin/grub-install ${HDD_DEV} --boot-directory=`pwd`/linux-mate/boot       
-
-echo "unmounting ${HDD_DEV}1..."
-umount ${HDD_DEV}1
-
-echo "Resizing partition..."
-parted -a optimal -s $HDD_DEV -- resizepart 1 40GiB
-
-echo "Resizing filesystem..."
-e2fsck -f ${HDD_DEV}1
-resize2fs ${HDD_DEV}1 
-
+# do the actual, work
+create_partitions_and_copy_image
