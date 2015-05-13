@@ -11,6 +11,12 @@ HDD_DEV=$1
 BOUNDARY=0
 SWAP=0
 
+function calculate_image_size {
+    echo "Calculate size of $1..."
+    target_size=`stat --printf=%s "${1}"`
+    TARGET_MiB_SIZE=`expr $target_size / 1048576`
+}
+
 function get_master_image_filename {    
     local target
     if [ -e $SOURCE_IMAGE ]; then
@@ -113,13 +119,19 @@ function create_partitions_and_copy_image {
     echo "creating partitions...."
     
     get_target_device_size
+    get_master_image_filename
+    echo "target: $MASTER_IMAGE"
+    calculate_image_size "$MASTER_IMAGE"
+
     echo "BOUNDARY = $BOUNDARY"
     echo "SIZE = $SIZE"
-    SWAP=`expr $SIZE - 4`
+    SWAP_MB=`expr $SIZE * 1024 - 3840`
+    START_MB=1
+    END_MB=`expr $TARGET_MiB_SIZE + $START_MB`
     parted -a optimal -s $HDD_DEV -- mklabel msdos \
-        mkpart primary ext4 1 6145MiB \
+        mkpart primary ext4 ${START_MB}MiB ${END_MB}MiB \
         mkpart extended ${BOUNDARY}GiB 100% \
-        mkpart logical linux-swap ${SWAP}GiB 100% \
+        mkpart logical linux-swap ${SWAP_MB}MiB 100% \
         mkpart logical ext4 ${BOUNDARY}GiB ${SWAP}GiB \
         set 1 boot on
 
@@ -135,7 +147,6 @@ function create_partitions_and_copy_image {
     fi
 
     echo "Writing master image to ${HDD_DEV}1..."
-    get_master_image_filename
     pv "$MASTER_IMAGE" | dd of=${HDD_DEV}1 
 
     echo "mounting ${HDD_DEV}1..."
