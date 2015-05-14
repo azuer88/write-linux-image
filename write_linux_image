@@ -1,5 +1,5 @@
 #!/bin/bash 
-set -e 
+# set -e 
 # any error, and this script will exit
 
 MAX_HOME=100 # GiB to reserve for home
@@ -168,7 +168,7 @@ function create_partitions_and_copy_image {
     parted -a optimal -s $HDD_DEV -- resizepart 1 40GiB
 
     echo "Resizing filesystem..."
-    e2fsck -cf ${HDD_DEV}1
+    e2fsck -cvvf ${HDD_DEV}1
     resize2fs ${HDD_DEV}1 
 }
 
