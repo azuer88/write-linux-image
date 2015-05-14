@@ -127,7 +127,8 @@ function create_partitions_and_copy_image {
     echo "SIZE = $SIZE"
     SIZE_MB=`expr $SIZE \* 1024`
     echo "SIZE_MB = $SIZE_MB"
-    SWAP_MB=`expr $SIZE_MB - 3841`
+    SWAP_MB=`expr $SIZE_MB - 3840`
+    SWAP=`expr $SWAP_MB / 1024`
     echo "SWAP_MB = $SWAP_MB"
     START_MB=1
     END_MB=`expr $TARGET_MiB_SIZE + $START_MB`
@@ -135,9 +136,9 @@ function create_partitions_and_copy_image {
     BOUNDARY_MB=`expr $BOUNDARY \* 1024 + 1`
     parted -a optimal -s $HDD_DEV -- unit MiB mklabel msdos \
         mkpart primary ext4 ${START_MB} ${END_MB} \
-        mkpart extended ${BOUNDARY_MB} 100% \
-        mkpart logical linux-swap ${SWAP_MB} 100% \
-        mkpart logical ext4 ${BOUNDARY_MB} ${SWAP_MB} \
+        mkpart extended ${BOUNDARY}GiB 100% \
+        mkpart logical linux-swap ${SWAP}GiB 100% \
+        mkpart logical ext4 ${BOUNDARY}GiB ${SWAP}GiB \
         set 1 boot on
 
     mkswap -c -L swap ${HDD_DEV}5 
