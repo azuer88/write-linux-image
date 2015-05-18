@@ -178,6 +178,7 @@ function create_partitions_and_copy_image {
         e2fsck -cvv ${HDD_DEV}1
     fi
     e2label ${HDD_DEV}1 linux-mint
+    e2label ${HDD_DEV}6 home-rw
 }
 
 function print_usage_and_exit {
