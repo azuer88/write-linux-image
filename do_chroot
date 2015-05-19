@@ -1,5 +1,8 @@
 #!/bin/bash
 
+SELF=$0
+ALL_ARGS=$@
+
 set -e
 
 
@@ -8,16 +11,16 @@ function check_rights {
     if [ $UID != $ROOT_UID ]; then
         echo "This script needs administrator privileges."
         if [[ -t 1 ]]; then
-            sudo "$SELF" "$HDD_DEV"
+            sudo "$SELF" $ALL_ARGS
         else
             exec 1>output_file
-            gksu "$SELF" "$HDD_DEV"
+            gksu "$SELF" $ALL_ARGS
         fi
         exit
     fi
 }
 
-
+set -x 
 check_rights
 
 # prepare the chroot enviroment
@@ -55,7 +58,8 @@ rm /sbin/initctl
 dpkg-divert --rename --remove /sbin/initctl
 
 umount /proc
-if mount | grep /proc > /dev/null; then
+mount | grep /proc > /dev/null
+if [ $? -ne 0 ]; then
     umount -lf /proc
 fi
 umount /sys
