@@ -68,6 +68,23 @@ $ apt-get clean
 $ exit
 ```
 
+* enlarging the disk image size to 6544MiB (6144 + 400), don't use the symbolic link, use the actual filename.
+```
+$ truncate linux-image.img -s 6544M
+$ e2fsck -f linux-image.img
+$ resize2fs linux-image.img
+```
+
+* shrinking the image size to 6144MiB, don't use the symlink, use the actual filename.
+```
+$ e2fsck -f linux-image.img
+$ resize2fs linux-image.img 6144M
+$ truncate linux-image.img -s 6144MB
+$ e2fsck -f linux-image.img
+```
+
+
+
 ## Contributors
 
 ### Contributors on GitHub
