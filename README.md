@@ -42,6 +42,7 @@ $ ./write_image /dev/sdb
 You now have a cloned image in /dev/sdb, where sdb1 is the system partition mounted as root, sdb5 is the swap partition, and sdb6 is the home partition (mounted as /home, obviously).
 
 You can make changes to the image by running do_chroot script:
+
 (1) make the mount point for the image:
 ```
 $ mkdir root
@@ -59,7 +60,13 @@ $ ln -s write_linux_image/do_chroot .
 
 You can do most of your customization now, and then just `exit` when done.  You may want to clean up by runnint `apt-get clean` before you `exit`.
 
-
+For example, you may want to upgrade, then exit:
+```
+$ apt-get update 
+$ apt-get -y upgrade
+$ apt-get clean
+$ exit
+```
 
 ## Contributors
 
