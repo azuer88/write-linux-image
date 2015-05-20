@@ -57,7 +57,7 @@ $ ln -s write_linux_image/do_chroot .
 ./do_chroot
 ```
 
-You can do most of your customization now, and then just `exit` when done.
+You can do most of your customization now, and then just `exit` when done.  You may want to clean up by runnint `apt-get clean` before you `exit`.
 
 
 
