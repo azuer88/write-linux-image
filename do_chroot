@@ -46,6 +46,8 @@ ln -s /bin/true /sbin/initctl
 dpkg-divert --local --rename --add /usr/sbin/invoke-rc.d
 ln -s /bin/true /usr/sbin/invoke-rc.d
 
+dpkg-divert --local --rename --add /usr/sbin/grub-probe
+ln -s /bin/true /usr/sbin/grub-probe
 
 /bin/bash -i
 
@@ -58,6 +60,9 @@ ln -s /bin/true /usr/sbin/invoke-rc.d
 # don't do 'rm -rf /var/cache/apt/archives/*' for same reason above
 rm -rf /tmp/* ~/.bash_history
 rm /var/lib/dbus/machine-id
+
+rm /usr/sbin/grub-probe
+dpkg-divert --rename --remove /usr/sbin/grub-probe
 
 rm /usr/sbin/invoke-rc.d
 dpkg-divert --rename --remove /usr/sbin/invoke-rc.d
