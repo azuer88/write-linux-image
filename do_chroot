@@ -42,6 +42,10 @@ export LC_ALL=C
 dbus-uuidgen > /var/lib/dbus/machine-id
 dpkg-divert --local --rename --add /sbin/initctl
 ln -s /bin/true /sbin/initctl
+# for libpam-systemd workaround in chroot
+dpkg-divert --local --rename --add /usr/sbin/invoke-rc.d
+ln -s /bin/true /usr/sbin/invoke-rc.d
+
 
 /bin/bash -i
 
@@ -54,6 +58,10 @@ ln -s /bin/true /sbin/initctl
 # don't do 'rm -rf /var/cache/apt/archives/*' for same reason above
 rm -rf /tmp/* ~/.bash_history
 rm /var/lib/dbus/machine-id
+
+rm /usr/sbin/invoke-rc.d
+dpkg-divert --rename --remove /usr/sbin/invoke-rc.d
+
 rm /sbin/initctl
 dpkg-divert --rename --remove /sbin/initctl
 
