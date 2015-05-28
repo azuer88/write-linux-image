@@ -31,6 +31,23 @@ mount --bind /dev/ root/dev
 (
 cat<<EOF
 #!/bin/bash -x
+
+declare -a PROG_LIST=("/sbin/initctl" "/usr/sbin/invoke-rc.d" "/usr/sbin/grub-probe")
+
+function divert_programs() {
+    for prog in "\${PROG_LIST[@]}"; do
+        dpkg-divert --local --rename --add "\${prog}"
+        ln -s /bin/true "\${prog}"
+    done
+}
+
+function undivert_programs() {
+    for prog in "\${PROG_LIST[@]}"; do
+        rm "\${prog}"
+        dpkg-divert --rename -remove "\${prog}"
+    done
+}
+
 mount -t proc none /proc
 mount -t sysfs none /sys
 mount -t devpts none /dev/pts
@@ -40,14 +57,8 @@ export LC_ALL=C
 
 # prepare for customization (running apt-get, for example)
 dbus-uuidgen > /var/lib/dbus/machine-id
-dpkg-divert --local --rename --add /sbin/initctl
-ln -s /bin/true /sbin/initctl
-# for libpam-systemd workaround in chroot
-dpkg-divert --local --rename --add /usr/sbin/invoke-rc.d
-ln -s /bin/true /usr/sbin/invoke-rc.d
 
-dpkg-divert --local --rename --add /usr/sbin/grub-probe
-ln -s /bin/true /usr/sbin/grub-probe
+divert_programs
 
 cd /root 
 /bin/bash -i
@@ -62,14 +73,7 @@ cd /root
 rm -rf /tmp/* ~/.bash_history
 rm /var/lib/dbus/machine-id
 
-rm /usr/sbin/grub-probe
-dpkg-divert --rename --remove /usr/sbin/grub-probe
-
-rm /usr/sbin/invoke-rc.d
-dpkg-divert --rename --remove /usr/sbin/invoke-rc.d
-
-rm /sbin/initctl
-dpkg-divert --rename --remove /sbin/initctl
+undivert_programs
 
 umount /proc
 mount | grep /proc > /dev/null
