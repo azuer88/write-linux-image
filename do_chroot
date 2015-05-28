@@ -49,6 +49,7 @@ ln -s /bin/true /usr/sbin/invoke-rc.d
 dpkg-divert --local --rename --add /usr/sbin/grub-probe
 ln -s /bin/true /usr/sbin/grub-probe
 
+cd /root 
 /bin/bash -i
 
 # clean up
