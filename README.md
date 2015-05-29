@@ -7,9 +7,18 @@ I wrote this bash script to "automate" the creation of the partitions and writin
 
 The script expects a symlink named latest.img which should point to the master image.
 
+The second script, `do_chroot`, lets you make changes (all via cli) to the image.  You can also pass a directory name, so all changes are diverted to the directory name.  I usually use this to install a package, and get the `*.deb` to do the actual install in another machine.  Makes getting all the necessary `*.deb` files easy for installing on an offline machine.
+
 ## Download
 * [Version 0.1](https://github.com/azuer88/write-linux-image/archive/master.zip)
 * Other Versions
+
+## Software dependencies
+Requires aufs-tools, if you use the mount.aufs functionality.
+```
+sudo apt-get install aufs-tools
+```
+
 
 ## Usage
 I usually have a folder where I store my images, let's call /master_images/.  Inside this folder, I clone this repository (repo), among others.

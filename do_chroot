@@ -24,7 +24,12 @@ set -x
 check_rights
 
 # prepare the chroot enviroment
-mount latest.img root 
+if [ -z "$1" ]; then
+    mount latest.img root
+else
+    mount latest.img root-ro
+    mount -t aufs -o br="$1":root-ro none root
+fi
 mount --bind /dev/ root/dev
 
 # prepare startup script for chroot
@@ -92,6 +97,9 @@ chroot root /tmp/startup.sh
 umount root/dev
 umount root
 
-
+mount | grep root-ro > /dev/null
+if [ $? -ne 0 ]; then
+    umount root-ro
+fi
 
 
