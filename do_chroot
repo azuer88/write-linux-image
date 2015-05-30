@@ -32,6 +32,56 @@ else
 fi
 mount --bind /dev/ root/dev
 
+# prepare fake_grub_probe 
+(
+cat<<EOF
+#!/bin/bash
+
+optspec=":-:"
+
+while getopts "\$optspec" optchar; do
+    case "\${optchar}" in 
+        -) 
+            case \${OPTARG} in
+                target)
+                    val = "\${!OPTIND}"; OPTIND=\$(( $OPTIND + 1 ))
+                    echo "parsing option: '--\${OPTARG}', value: '\${val}'" >&2
+                    ;;
+                target=*)
+                    val=\${OPTARG#*=}
+                    opt=\${OPTARG%=$val}
+                    echo "Parsing option: '--\${opt}', value: '\${val}'" >&2
+                    if [ "\${val}" == "device" ]; then
+                        echo "/dev/sda1"
+                        exit 0
+                    elif [ "\${val}" == "fs" ]; then
+                        echo "linux-mint"
+                        exit 0
+                    fi
+                    ;;
+                device)
+                    val="\${!OPTIND}"; OPTIND=\$(( $OPTIND + 1 ))
+                    echo "parsing option '--\${OPTARG}', value: '\${val}'" >&2
+                    ;;
+                device=*)
+                    val=\${OPTARG#*=}
+                    opt=\${OPTARG%=\$val}
+                    echo "Parsing option: '--\${opt}', value: '\${val}'" >&2
+                    ;;
+
+                *)
+                    echo "unknown option --\${OPTARG}" >&2
+            esac;;
+        *)
+            echo "non-option argument: '-\${OPTARG}'" >&2
+            ;;
+    esac
+done
+exit 255
+EOF
+) > root/fake_grub_probe
+chmod +x root/fake_grub_probe
+
 # prepare startup script for chroot
 (
 cat<<EOF
@@ -49,7 +99,7 @@ function divert_programs() {
 function undivert_programs() {
     for prog in "\${PROG_LIST[@]}"; do
         rm "\${prog}"
-        dpkg-divert --rename -remove "\${prog}"
+        dpkg-divert --rename --remove "\${prog}"
     done
 }
 
@@ -64,6 +114,10 @@ export LC_ALL=C
 dbus-uuidgen > /var/lib/dbus/machine-id
 
 divert_programs
+
+# use fake_grub_probe instead of diverted symlink to /bin/true
+rm /usr/sbin/grub-probe
+ln -s /root/fake_grub_probe /usr/sbin/grub-probe
 
 cd /root 
 /bin/bash -i
