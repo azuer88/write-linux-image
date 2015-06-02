@@ -170,7 +170,7 @@ function create_partitions_and_copy_image {
 
     if [ ${IS_XZIP} ]; then
         echo "Writing XZ master image to ${HDD_DEV}1..."
-        pv "$MASTER_IMAGE" | xz | dd of=${HDD_DEV}1
+        pv "$MASTER_IMAGE" | unxz | dd of=${HDD_DEV}1
     else
         echo "Writing master image to ${HDD_DEV}1..."
         pv "$MASTER_IMAGE" | dd of=${HDD_DEV}1 
