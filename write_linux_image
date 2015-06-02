@@ -4,16 +4,25 @@
 
 MAX_HOME=100 # GiB to reserve for home
 MOUNT_POINT="`pwd`/linux-mate"
-SOURCE_IMAGE="latest.img"
+# SOURCE_IMAGE="latest.img"
+SOURCE_IMAGE="linux-image.7z"
 MASTER_IMAGE=""
 SELF=$0
 HDD_DEV=$1
 BOUNDARY=0
 SWAP=0
 
+CHK_OPTS=""
+
+
+
 function calculate_image_size {
     echo "Calculate size of $1..."
-    target_size=`stat --printf=%s "${1}"`
+    if [ $IS_7ZIP ]; then
+        target_size=`7z -slt l ${1} | grep "^Size" | awk '{print $3}'`
+    else
+        target_size=`stat --printf=%s "${1}"`
+    fi
     TARGET_MiB_SIZE=`expr $target_size / 1048576`
 }
 
@@ -32,6 +41,12 @@ function get_master_image_filename {
         exit 3
     fi
     MASTER_IMAGE="$target"
+    
+    if file $MASTER_IMAGE | grep -q '7-zip'; then
+        IS_7ZIP=true
+    else
+        IS_7ZIP=false
+    fi
 }
 
 function check_rights {
@@ -152,8 +167,14 @@ function create_partitions_and_copy_image {
         echo "not mounted, good."
     fi
 
-    echo "Writing master image to ${HDD_DEV}1..."
-    pv "$MASTER_IMAGE" | dd of=${HDD_DEV}1 
+    if [ ${IS_7ZIP} ]; then
+        echo "Writing 7zip master image to ${HDD_DEV}1..."
+        pv "$MASTER_IMAGE" | 7z -si -so -bd | dd of=${HDD_DEV}1
+        #  7z -so -bd e "$MASTER_IMAGE" &> /dev/null | pv -s ${TARGET_MiB_SIZE}m | dd of=${HDD_DEV}
+    else
+        echo "Writing master image to ${HDD_DEV}1..."
+        pv "$MASTER_IMAGE" | dd of=${HDD_DEV}1 
+    fi
 
     echo "mounting ${HDD_DEV}1..."
     mount ${HDD_DEV}1 "${MOUNT_POINT}"
