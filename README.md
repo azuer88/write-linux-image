@@ -14,6 +14,8 @@ The second script, `do_chroot`, lets you make changes (all via cli) to the image
 * Other Versions
 
 ## Software dependencies
+Requires pv, install with: `sudo apt-get install pv`
+
 Requires aufs-tools, if you use the mount.aufs functionality.
 ```
 sudo apt-get install aufs-tools
