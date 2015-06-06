@@ -1,0 +1,7 @@
+#!/bin/bash 
+
+TARGET=`readlink -f latest.img`
+
+echo "compressing $TARGET..."
+pv "$TARGET" | xz -c9 > linux-image.xz 
+
