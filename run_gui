@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+function print_usage_and_exit {
+    cat <<EOF_USAGE
+$0 <args>
+EOF_USAGE
+
+    exit $1
+}
+function print_required_exes_and_exit {
+    cat <<EOF_MISSING
+$0 requires the following packages:
+  debianutils (installed by default)
+  pv
+  dialog 
+  ncurses-bin (not sure if installed)
+EOF_MISSING
+   
+    exit $1
+}
+
+function check_prog {
+    which $1 >& /dev/null || print_required_exes_and_exit 2
+}
+
+function check_required_executables {
+    check_prog dialog    
+    check_prog pv
+    check_prog tput
+}
+
+function calc_dialog_cols {
+    DIALOG_COL=$(expr `tput cols` - 6)
+}
+function calc_dialog_rows {
+    DIALOG_ROW=$(expr `tput lines` - 13)
+}
+function exit_with_msg {
+    echo $1 
+    [ -z "$2" ] && exit $2 || exit 100
+}
+
+function select_image {
+
+    set -x
+    FILE=$(dialog --title "Select Master Image to write" --stdout --fselect "`pwd`" $DIALOG_ROW $DIALOG_COL)
+
+    [ -z "$FILE" ] && exit_with_msg "No image selected. Exiting." 3
+}
+
+
+check_required_executables
+
+calc_dialog_cols
+calc_dialog_rows
+
+select_image 
+
+echo $FILE
